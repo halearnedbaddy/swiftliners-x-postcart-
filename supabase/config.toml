@@ -1,0 +1,34 @@
+project_id = "pxyyncsnjpuwvnwyfdwx"
+
+[functions.auth-api]
+verify_jwt = false
+
+[functions.links-api]
+verify_jwt = false
+
+[functions.paystack-api]
+verify_jwt = false
+
+[functions.store-api]
+verify_jwt = false
+
+[functions.storefront-api]
+verify_jwt = false
+
+[functions.transaction-api]
+verify_jwt = false
+
+[functions.wallet-api]
+verify_jwt = false
+
+[functions.admin-api]
+verify_jwt = false
+
+[functions.admin-setup]
+verify_jwt = false
+
+[functions.otp-sms]
+verify_jwt = false
+
+[functions.ai-generate-product]
+verify_jwt = false

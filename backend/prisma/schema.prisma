@@ -1,0 +1,628 @@
+// SWIFTLINE Escrow Platform - Database Schema
+// This schema defines all models for the Smart Payment Link escrow system
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Enable SSL for cloud databases like Neon
+  // The connection string should include ?sslmode=require
+}
+
+// ================== ENUMS ==================
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum SignupMethod {
+  PHONE_OTP
+  EMAIL_PASSWORD
+  ADMIN_CREATED  // Pre-created admin accounts
+}
+
+enum CountryStatus {
+  ACTIVE
+  INACTIVE
+  COMING_SOON
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum TransactionStatus {
+  PENDING      // Link created, waiting for buyer to pay
+  PROCESSING   // Payment is being processed
+  PAID         // Buyer has paid, funds in escrow
+  ACCEPTED     // Seller accepted the order
+  SHIPPED      // Seller has shipped the item
+  DELIVERED    // Item delivered, waiting for confirmation
+  COMPLETED    // Buyer confirmed, funds released to seller
+  DISPUTED     // Buyer opened a dispute
+  CANCELLED    // Transaction cancelled
+  REFUNDED     // Funds refunded to buyer
+  EXPIRED      // Payment link expired
+}
+
+enum LinkStatus {
+  ACTIVE
+  EXPIRED
+  SOLD_OUT
+  DELETED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  AWAITING_SELLER
+  AWAITING_BUYER
+  RESOLVED_BUYER  // Resolved in buyer's favor
+  RESOLVED_SELLER // Resolved in seller's favor
+  CLOSED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum PaymentMethodType {
+  MOBILE_MONEY
+  BANK_ACCOUNT
+}
+
+enum NotificationType {
+  PAYMENT_RECEIVED     // Seller: funds secured in escrow
+  ORDER_ACCEPTED       // Buyer: seller accepted order
+  ITEM_SHIPPED         // Buyer: item shipped
+  DELIVERY_CONFIRMED   // Seller: funds released
+  DISPUTE_OPENED       // Both: dispute opened
+  DISPUTE_UPDATE       // Both: dispute status changed
+  DISPUTE_RESOLVED     // Both: dispute resolved
+  WITHDRAWAL_PROCESSED // Seller: withdrawal completed
+  LINK_EXPIRED         // Seller: payment link expired
+  REMINDER             // Both: action reminder
+}
+
+// New enums for Storefront & Social integrations
+enum StoreStatus {
+  INACTIVE
+  ACTIVE
+  FROZEN
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  LINKEDIN
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ================== MODELS ==================
+
+model User {
+  id                   String        @id @default(uuid())
+  phone                String?       @unique  // Optional for email signup
+  email                String?       @unique
+  name                 String
+  passwordHash         String?       // For email+password signup
+  profilePicture       String?
+  role                 UserRole      @default(BUYER)
+  signupMethod         SignupMethod  @default(PHONE_OTP)
+  accountStatus        AccountStatus @default(ACTIVE)
+  isPhoneVerified      Boolean       @default(false)
+  isEmailVerified      Boolean       @default(false)
+  isVerified           Boolean       @default(false)  // Legacy - true if either phone or email verified
+  isActive             Boolean       @default(true)
+  failedLoginAttempts  Int           @default(0)
+  lockedUntil          DateTime?
+  lastLogin            DateTime?
+  memberSince          DateTime      @default(now())
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  // Multi-currency fields
+  countryCode          String        @default("KE")
+  currencyCode         String        @default("KES")
+  preferredLanguage    String        @default("en")
+  timezone             String?       @default("Africa/Nairobi")
+
+  // Relations
+  country              Country       @relation(fields: [countryCode], references: [code])
+  wallet               Wallet?
+  sellerProfile        SellerProfile?
+  store                Store?
+  paymentMethods       PaymentMethod[]
+  withdrawals          Withdrawal[]
+  transactionsAsSeller Transaction[]    @relation("SellerTransactions")
+  transactionsAsBuyer  Transaction[]    @relation("BuyerTransactions")
+  disputesOpened       Dispute[]        @relation("DisputeOpener")
+  paymentLinks         PaymentLink[]
+  notifications        Notification[]
+  refreshTokens        RefreshToken[]
+  auditLogs            AuditLog[]
+  adminActions         AdminLog[]       @relation("AdminActions")
+
+  @@index([phone])
+  @@index([email])
+  @@index([role])
+  @@index([signupMethod])
+}
+
+model SellerProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  businessName      String?
+  businessAddress   String?
+  
+  // Tax & Compliance
+  taxId             String?  // KRA PIN, TIN, etc.
+  businessRegNumber String?
+  isBusiness        Boolean  @default(false)
+  
+  isVerified        Boolean  @default(false)
+  verificationDate  DateTime?
+  rating            Float    @default(0)
+  totalReviews      Int      @default(0)
+  totalSales        Int      @default(0)
+  successRate       Float    @default(100)
+  responseTime      Int?     // Average response time in hours
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations
+  // store relation is accessible via User.store; no direct relation here
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  availableBalance Float    @default(0)
+  pendingBalance   Float    @default(0)  // Funds in escrow
+  totalEarned      Float    @default(0)
+  totalSpent       Float    @default(0)
+  currency         String   @default("KES")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PaymentMethod {
+  id            String            @id @default(uuid())
+  userId        String
+  type          PaymentMethodType
+  provider      String            // e.g., "M-PESA", "EQUITY", "KCB"
+  accountNumber String            // Phone number or bank account
+  accountName   String
+  isDefault     Boolean           @default(false)
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawals   Withdrawal[]
+
+  @@index([userId])
+}
+
+model Withdrawal {
+  id              String           @id @default(uuid())
+  userId          String
+  paymentMethodId String
+  amount          Float
+  fee             Float            @default(0)
+  netAmount       Float?           // amount - fee
+  status          WithdrawalStatus @default(PENDING)
+  reference       String?          // External payment reference
+  failureReason   String?
+  processedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentMethod   PaymentMethod    @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Transaction {
+  id                    String            @id
+  sellerId              String
+  buyerId               String?           // null until buyer pays
+  
+  // Product Details
+  itemName              String
+  itemDescription       String?
+  itemImages            String[]          @default([])
+  amount                Float
+  quantity              Int               @default(1)
+  currency              String            @default("KES")
+
+  // Multi-currency fields
+  buyerCurrency         String            @default("KES")
+  buyerAmount           Decimal?          @db.Decimal(10, 2)
+  baseAmountUSD         Decimal?          @db.Decimal(10, 2)
+  sellerCurrency        String            @default("KES")
+  sellerAmount          Decimal?          @db.Decimal(10, 2)
+  exchangeRate          Decimal?          @db.Decimal(12, 6)
+  exchangeRateTimestamp DateTime?
+  
+  // Buyer Details (for guest checkout)
+  buyerPhone            String?
+  buyerName             String?
+  buyerEmail            String?
+  buyerAddress          String?
+  
+  // Payment Details
+  paymentMethod         String?
+  paymentReference      String?           // M-Pesa confirmation code etc.
+  platformFee           Float?
+  sellerPayout          Float?
+  
+  // Status & Dates
+  status                TransactionStatus @default(PENDING)
+  expiresAt             DateTime?
+  paidAt                DateTime?
+  acceptedAt            DateTime?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  refundedAt            DateTime?
+  
+  // Shipping Details
+  courierName           String?
+  trackingNumber        String?
+  estimatedDeliveryDate DateTime?
+  shippingNotes         String?
+  deliveryProofUrls     String[]          @default([])
+  
+  // Rejection/Cancellation
+  rejectedAt            DateTime?
+  rejectionReason       String?
+  cancellationReason    String?
+  
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  // Relations
+  seller                User              @relation("SellerTransactions", fields: [sellerId], references: [id])
+  buyer                 User?             @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  dispute               Dispute?
+  payout                Payout?
+
+  // Storefront association (optional): transactions may originate from a product
+  productId             String?
+  product               Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  // Payment Link association (optional)
+  paymentLinkId         String?
+  paymentLink           PaymentLink?      @relation(fields: [paymentLinkId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
+  @@index([buyerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Dispute {
+  id            String        @id @default(uuid())
+  transactionId String        @unique
+  openedById    String
+  
+  reason        String
+  description   String?
+  evidence      String[]      @default([])
+  
+  status        DisputeStatus @default(OPEN)
+  resolution    String?
+  resolvedById  String?
+  resolvedAt    DateTime?
+  deadline      DateTime?
+  
+  // Communication
+  messages      DisputeMessage[]
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  transaction   Transaction   @relation(fields: [transactionId], references: [id])
+  openedBy      User          @relation("DisputeOpener", fields: [openedById], references: [id])
+
+  @@index([status])
+}
+
+model DisputeMessage {
+  id        String   @id @default(uuid())
+  disputeId String
+  senderId  String
+  message   String
+  attachments String[] @default([])
+  isAdmin   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  @@index([disputeId])
+}
+
+model Payout {
+  id            String   @id @default(uuid())
+  transactionId String   @unique
+  sellerId      String
+  amount        Float
+  platformFee   Float
+  status        String   @default("COMPLETED")
+  createdAt     DateTime @default(now())
+
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?            // Additional data (transactionId, etc.)
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  deviceId  String?
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model OTP {
+  id          String   @id @default(uuid())
+  phone       String
+  code        String
+  purpose     String   // LOGIN, REGISTRATION, PASSWORD_RESET, VERIFICATION
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3)
+  isUsed      Boolean  @default(false)
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([phone, purpose])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ================== ADMIN LOG MODEL ==================
+
+model AdminLog {
+  id           String   @id @default(uuid())
+  adminId      String
+  action       String   // e.g., "USER_SUSPENDED", "USER_ACTIVATED", "DISPUTE_RESOLVED"
+  targetUserId String?
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  admin        User     @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ================== STOREFRONT & SOCIAL MODELS (ADD ONLY) ==================
+
+model Store {
+  id           String       @id @default(uuid())
+  sellerId     String       @unique
+  name         String
+  slug         String       @unique
+  logo         String?
+  bio          String?
+  visibility   String       @default("PRIVATE") // PRIVATE or PUBLIC
+  status       StoreStatus  @default(INACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  seller       User         @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  socialAccounts SocialAccount[]
+  products       Product[]
+  syncLogs       SyncLog[]
+}
+
+model SocialAccount {
+  id            String         @id @default(uuid())
+  storeId       String
+  platform      SocialPlatform
+  pageUrl       String
+  pageId        String?
+  lastScannedAt DateTime?
+  scanStatus    String?        // e.g., SUCCESS, ERROR
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  syncLogs      SyncLog[]
+
+  @@unique([storeId, platform]) // one page per platform per store
+  @@index([storeId])
+}
+
+model Product {
+  id            String         @id @default(uuid())
+  storeId       String
+  socialPostId  String?
+  platform      SocialPlatform?
+  name          String
+  description   String?
+  price         Float?
+  currency      String         @default("KES")
+
+  // Multi-currency fields
+  basePriceUSD  Decimal?       @db.Decimal(10, 2)
+  sellerCurrency String        @default("KES")
+  sellerPrice   Decimal?       @db.Decimal(10, 2)
+
+  images        String[]       @default([])
+  status        ProductStatus  @default(DRAFT)
+  source        String         @default("AI")
+  isAvailable   Boolean        @default(true)
+  availabilityNote String?
+  aiConfidenceScore Float?      // 0-1
+  extractionWarnings String[]   @default([])
+  missingFields String[]       @default([])
+  lastSyncedAt  DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@index([storeId])
+  @@index([status])
+}
+
+model SyncLog {
+  id               String   @id @default(uuid())
+  storeId          String
+  socialAccountId  String?
+  eventType        String   // SCAN_STARTED, SCAN_COMPLETED, ERROR
+  status           String   // SUCCESS, ERROR, PARTIAL
+  newCount         Int      @default(0)
+  updatedCount     Int      @default(0)
+  archivedCount    Int      @default(0)
+  message          String?
+  createdAt        DateTime @default(now())
+
+  store            Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  socialAccount    SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model PaymentLink {
+  id                 String      @id // PL-XXXXX
+  sellerId           String
+  sellerName         String?
+  productName        String
+  productDescription String?
+  price              Decimal     @db.Decimal(10, 2)
+  originalPrice      Decimal?    @db.Decimal(10, 2)
+  currency           String      @default("KES")
+
+  // Multi-currency fields
+  basePriceUSD       Decimal?    @db.Decimal(10, 2)
+  allowMultiCurrency Boolean     @default(true)
+
+  images             String[]    @default([])
+  customerPhone      String?
+  quantity           Int         @default(1)
+  expiryDate         DateTime?
+  status             LinkStatus  @default(ACTIVE)
+  clicks             Int         @default(0)
+  purchases          Int         @default(0)
+  revenue            Decimal     @default(0) @db.Decimal(10, 2)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  seller             User        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ================== MULTI-CURRENCY MODELS ==================
+
+model Country {
+  id                  Int           @id @default(autoincrement())
+  code                String        @unique // ISO 3166-1 alpha-2 (KE, UG, TZ)
+  name                String
+  currencyCode        String        // ISO 4217 (KES, UGX, TZS)
+  currencySymbol      String?
+  currencyName        String?
+  phonePrefix         String?       // +254, +256, +255
+  status              CountryStatus @default(ACTIVE)
+  platformFeePercent  Decimal       @default(5.00) @db.Decimal(4, 2)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  users               User[]
+
+  @@index([code])
+  @@index([currencyCode])
+}
+
+model ExchangeRate {
+  id            Int      @id @default(autoincrement())
+  fromCurrency  String   // Base: USD
+  toCurrency    String
+  rate          Decimal  @db.Decimal(12, 6) // 1 USD = X local currency
+  source        String?  // API source (xe.com, openexchangerates.org)
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  @@unique([fromCurrency, toCurrency])
+  @@index([toCurrency])
+  @@index([updatedAt])
+}

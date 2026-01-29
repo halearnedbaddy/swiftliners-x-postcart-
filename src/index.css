@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark Purple color palette - PayLoom theme */
+  --purple-dark: #250e52;
+  --purple-medium: #3d1a7a;
+  --purple-light: #5d2ba3;
+  --accent-purple-light: #5d2ba3;
+  --accent-purple-medium: #3d1a7a;
+  --brown-light: #6E6658;
+  --brown-dark: #4F4A41;
+  
+  /* Convert to HSL for CSS variables - Dark Purple theme */
+  --background: 270 30% 98%;
+  --foreground: 270 50% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 270 50% 15%;
+  --primary: 270 70% 20%;
+  --primary-foreground: 270 30% 95%;
+  --secondary: 270 20% 90%;
+  --secondary-foreground: 270 50% 15%;
+  --muted: 270 15% 92%;
+  --muted-foreground: 270 30% 40%;
+  --accent: 270 50% 30%;
+  --accent-foreground: 270 30% 95%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 270 20% 85%;
+  --input: 270 20% 90%;
+  --ring: 270 70% 20%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 270 50% 8%;
+  --foreground: 270 20% 90%;
+  --card: 270 50% 12%;
+  --card-foreground: 270 20% 90%;
+  --primary: 270 60% 50%;
+  --primary-foreground: 270 30% 95%;
+  --secondary: 270 40% 18%;
+  --secondary-foreground: 270 20% 90%;
+  --muted: 270 40% 18%;
+  --muted-foreground: 270 20% 65%;
+  --accent: 270 50% 30%;
+  --accent-foreground: 270 20% 90%;
+  --destructive: 0 60% 40%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 270 40% 20%;
+  --input: 270 40% 20%;
+  --ring: 270 60% 50%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar Styling - Purple/Brown Theme */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: #250e52;
+  border-radius: 4px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #5d2ba3;
+  border-radius: 4px;
+  border: 1px solid #3d1a7a;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6d3bb3;
+}
+
+/* Firefox scrollbar styling */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #5d2ba3 #250e52;
+}
+
+/* General scrollbar styling for modals and other scrollable areas */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #5d2ba3;
+  border-radius: 4px;
+  border: 1px solid #3d1a7a;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6d3bb3;
+}
+
+/* Firefox scrollbar styling for general areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #5d2ba3 #f3f4f6;
+}

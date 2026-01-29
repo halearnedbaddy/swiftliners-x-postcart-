@@ -1,0 +1,35 @@
+Uncaught Error: useAuth must be used within an AuthProvider
+    at useAuth (AuthContext.tsx:105:11)
+    at BuyerDashboard (BuyerDashboard.tsx:13:28)
+    at renderWithHooks (chunk-TKA7E7G6.js?v=96039cbe:11596:26)
+    at mountIndeterminateComponent (chunk-TKA7E7G6.js?v=96039cbe:14974:21)
+    at beginWork (chunk-TKA7E7G6.js?v=96039cbe:15962:22)
+    at HTMLUnknownElement.callCallback2 (chunk-TKA7E7G6.js?v=96039cbe:3680:22)
+    at Object.invokeGuardedCallbackDev (chunk-TKA7E7G6.js?v=96039cbe:3705:24)
+    at invokeGuardedCallback (chunk-TKA7E7G6.js?v=96039cbe:3739:39)
+    at beginWork$1 (chunk-TKA7E7G6.js?v=96039cbe:19818:15)
+    at performUnitOfWork (chunk-TKA7E7G6.js?v=96039cbe:19251:20)Understand this error
+chunk-TKA7E7G6.js?v=96039cbe:14080 The above error occurred in the <BuyerDashboard> component:
+
+    at BuyerDashboard (https://bb6954cf-33c9-43e0-838b-0c3527bb79c4-00-1b6us5qdn0iwa.riker.replit.dev/src/pages/BuyerDashboard.tsx:33:22)
+    at RenderedRoute (https://bb6954cf-33c9-43e0-838b-0c3527bb79c4-00-1b6us5qdn0iwa.riker.replit.dev/node_modules/.vite/deps/react-router-dom.js?v=96039cbe:6104:26)
+    at Routes (https://bb6954cf-33c9-43e0-838b-0c3527bb79c4-00-1b6us5qdn0iwa.riker.replit.dev/node_modules/.vite/deps/react-router-dom.js?v=96039cbe:6945:3)
+    at Router (https://bb6954cf-33c9-43e0-838b-0c3527bb79c4-00-1b6us5qdn0iwa.riker.replit.dev/node_modules/.vite/deps/react-router-dom.js?v=96039cbe:6886:13)
+    at BrowserRouter (https://bb6954cf-33c9-43e0-838b-0c3527bb79c4-00-1b6us5qdn0iwa.riker.replit.dev/node_modules/.vite/deps/react-router-dom.js?v=96039cbe:9992:3)
+    at CloudAuthProvider (https://bb6954cf-33c9-43e0-838b-0c3527bb79c4-00-1b6us5qdn0iwa.riker.replit.dev/src/contexts/CloudAuthContext.tsx:29:37)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-TKA7E7G6.js?v=96039cbe:14080Understand this error
+chunk-TKA7E7G6.js?v=96039cbe:19466 Uncaught Error: useAuth must be used within an AuthProvider
+    at useAuth (AuthContext.tsx:105:11)
+    at BuyerDashboard (BuyerDashboard.tsx:13:28)
+    at renderWithHooks (chunk-TKA7E7G6.js?v=96039cbe:11596:26)
+    at mountIndeterminateComponent (chunk-TKA7E7G6.js?v=96039cbe:14974:21)
+    at beginWork (chunk-TKA7E7G6.js?v=96039cbe:15962:22)
+    at beginWork$1 (chunk-TKA7E7G6.js?v=96039cbe:19806:22)
+    at performUnitOfWork (chunk-TKA7E7G6.js?v=96039cbe:19251:20)
+    at workLoopSync (chunk-TKA7E7G6.js?v=96039cbe:19190:13)
+    at renderRootSync (chunk-TKA7E7G6.js?v=96039cbe:19169:15)
+    at recoverFromConcurrentError (chunk-TKA7E7G6.js?v=96039cbe:18786:28)
