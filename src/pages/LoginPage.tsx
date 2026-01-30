@@ -64,7 +64,7 @@ export function LoginPage() {
 
     const normalizedPhone = normalizeToE164(phone);
     if (!normalizedPhone) {
-      setError(t('auth.validKenyanPhone'));
+      setError('Enter a valid phone number with country code (e.g., +1234567890)');
       return;
     }
 
@@ -101,7 +101,7 @@ export function LoginPage() {
     try {
       const normalizedPhone = normalizeToE164(phone);
       if (!normalizedPhone) {
-        setError(t('auth.validKenyanPhone'));
+        setError('Enter a valid phone number with country code (e.g., +1234567890)');
         setIsLoading(false);
         return;
       }
@@ -287,7 +287,7 @@ export function LoginPage() {
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-2">
-                      {t('auth.enterPhoneRegistered')}
+                      Enter phone with country code: +1 (USA), +44 (UK), +254 (Kenya), +234 (Nigeria), etc.
                     </p>
                   </div>
 
