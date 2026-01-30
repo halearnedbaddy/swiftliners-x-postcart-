@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRightIcon, MailIcon, LockIcon, PhoneIcon } from '@/components/icons';
+import { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { ArrowRightIcon, MailIcon, LockIcon, PhoneIcon, AlertCircleIcon } from '@/components/icons';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useTranslations } from '@/hooks/useTranslations';
 import { normalizeToE164 } from '@/lib/phone';
+import { supabase } from '@/integrations/supabase/client';
 
 type AuthMode = 'email' | 'otp';
 type OtpStep = 'phone' | 'verify';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslations();
   const { loginEmail, login, requestOTP, isLoading: authLoading } = useSupabaseAuth();
   
@@ -27,10 +29,26 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [emailVerificationNeeded, setEmailVerificationNeeded] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
+
+  // Check for email confirmation message in URL
+  useEffect(() => {
+    const confirmed = searchParams.get('confirmed');
+    const errorDesc = searchParams.get('error_description');
+    
+    if (confirmed === 'true') {
+      setSuccess('Email verified successfully! You can now sign in.');
+    }
+    if (errorDesc) {
+      setError(decodeURIComponent(errorDesc));
+    }
+  }, [searchParams]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setEmailVerificationNeeded(false);
 
     if (!email || !password) {
       setError(t('auth.pleaseEnterEmailPassword'));
@@ -43,13 +61,52 @@ export function LoginPage() {
       if (result.success) {
         handleLoginSuccess();
       } else {
-        setError(result.error || t('auth.invalidCredentials'));
+        // Check if the error is about email verification
+        if (result.error?.toLowerCase().includes('email not confirmed') || 
+            result.error?.toLowerCase().includes('not verified')) {
+          setEmailVerificationNeeded(true);
+          setError('Please verify your email before signing in. Check your inbox for a verification link.');
+        } else {
+          setError(result.error || t('auth.invalidCredentials'));
+        }
         setIsLoading(false);
       }
     } catch {
       setError(t('auth.loginFailed'));
       setIsLoading(false);
     }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    setResendingVerification(true);
+    setError('');
+    
+    try {
+      const redirectUrl = `${window.location.origin}/login?confirmed=true`;
+      
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      if (resendError) {
+        setError(resendError.message);
+      } else {
+        setSuccess('Verification email sent! Please check your inbox.');
+        setEmailVerificationNeeded(false);
+      }
+    } catch {
+      setError('Failed to resend verification email. Please try again.');
+    }
+    setResendingVerification(false);
   };
 
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -138,6 +195,7 @@ export function LoginPage() {
     setError('');
     setSuccess('');
     setOtpStep('phone');
+    setEmailVerificationNeeded(false);
   };
 
   const resetOtpFlow = () => {
@@ -208,8 +266,28 @@ export function LoginPage() {
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-              {error}
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-start gap-3">
+              <AlertCircleIcon className="flex-shrink-0 mt-0.5" size={18} />
+              <div className="flex-1">
+                <p>{error}</p>
+                {emailVerificationNeeded && (
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={resendingVerification}
+                    className="mt-2 text-[#3d1a7a] font-bold hover:underline flex items-center gap-1"
+                  >
+                    {resendingVerification ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-[#3d1a7a]/30 border-t-[#3d1a7a] rounded-full animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Resend Verification Email'
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -238,7 +316,15 @@ export function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">{t('auth.password')}</label>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-bold text-gray-700">{t('auth.password')}</label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-[#3d1a7a] hover:underline font-medium"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative">
                   <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6E6658]" size={20} />
                   <input
@@ -368,9 +454,9 @@ export function LoginPage() {
 
           <p className="mt-8 text-center text-gray-500">
             {t('auth.dontHaveAccount')}{' '}
-            <a href="/signup" className="font-bold text-[#3d1a7a] hover:underline">
+            <Link to="/signup" className="font-bold text-[#3d1a7a] hover:underline">
               {t('common.signUp')}
-            </a>
+            </Link>
           </p>
         </div>
       </div>
