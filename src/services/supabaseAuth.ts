@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeToE164 } from "@/lib/phone";
 
 const EDGE_FUNCTION_URL = "https://pxyyncsnjpuwvnwyfdwx.supabase.co/functions/v1/auth-api";
 
@@ -27,13 +28,14 @@ export async function requestOTP(
   purpose: "LOGIN" | "REGISTRATION"
 ): Promise<AuthResponse> {
   try {
+    const normalizedPhone = normalizeToE164(phone) ?? phone;
     const response = await fetch(`${EDGE_FUNCTION_URL}/request-otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4eXluY3NuanB1d3Zud3lmZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMDY5NDMsImV4cCI6MjA4MzU4Mjk0M30.n-tEs1U3qB7E_eov-zVL2g7crlhNOqJ5cF5TcUeV_dI",
       },
-      body: JSON.stringify({ phone, purpose }),
+      body: JSON.stringify({ phone: normalizedPhone, purpose }),
     });
 
     return await response.json();
@@ -52,13 +54,14 @@ export async function registerWithPhone(data: {
   otp: string;
 }): Promise<AuthResponse> {
   try {
+    const normalizedPhone = normalizeToE164(data.phone) ?? data.phone;
     const response = await fetch(`${EDGE_FUNCTION_URL}/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4eXluY3NuanB1d3Zud3lmZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMDY5NDMsImV4cCI6MjA4MzU4Mjk0M30.n-tEs1U3qB7E_eov-zVL2g7crlhNOqJ5cF5TcUeV_dI",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, phone: normalizedPhone }),
     });
 
     const result = await response.json();
@@ -85,13 +88,14 @@ export async function loginWithPhone(
   otp: string
 ): Promise<AuthResponse> {
   try {
+    const normalizedPhone = normalizeToE164(phone) ?? phone;
     const response = await fetch(`${EDGE_FUNCTION_URL}/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4eXluY3NuanB1d3Zud3lmZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMDY5NDMsImV4cCI6MjA4MzU4Mjk0M30.n-tEs1U3qB7E_eov-zVL2g7crlhNOqJ5cF5TcUeV_dI",
       },
-      body: JSON.stringify({ phone, otp }),
+      body: JSON.stringify({ phone: normalizedPhone, otp }),
     });
 
     const result = await response.json();
@@ -119,15 +123,20 @@ export async function registerWithEmail(data: {
   password: string;
   name: string;
   role?: string;
+  phone?: string;
 }): Promise<AuthResponse> {
   try {
+    const normalizedPhone = data.phone ? normalizeToE164(data.phone) : null;
     const response = await fetch(`${EDGE_FUNCTION_URL}/register-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4eXluY3NuanB1d3Zud3lmZHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgwMDY5NDMsImV4cCI6MjA4MzU4Mjk0M30.n-tEs1U3qB7E_eov-zVL2g7crlhNOqJ5cF5TcUeV_dI",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+      }),
     });
 
     const result = await response.json();

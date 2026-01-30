@@ -10,16 +10,24 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+function normalizeE164(phone: string): string {
+  const raw = (phone ?? "").trim();
+  if (!raw) return "";
+  const withPlus = raw.startsWith("00") ? `+${raw.slice(2)}` : raw;
+  const stripped = withPlus.replace(/[^\d+]/g, "");
+  const normalized = stripped.startsWith("+")
+    ? `+${stripped.slice(1).replace(/\D/g, "")}`
+    : stripped.replace(/\D/g, "");
+  return normalized;
+}
+
+function isValidE164(phone: string): boolean {
+  return /^\+\d{10,15}$/.test(phone);
+}
+
 function formatPhoneNumber(phone: string): string {
-  let formatted = phone.trim().replace(/\D/g, '');
-  if (formatted.startsWith('0')) {
-    formatted = '254' + formatted.substring(1);
-  } else if (formatted.startsWith('7') || formatted.startsWith('1')) {
-    formatted = '254' + formatted;
-  } else if (!formatted.startsWith('254')) {
-    formatted = '254' + formatted;
-  }
-  return formatted;
+  // For SMS provider: digits only
+  return (phone ?? "").replace(/\D/g, "");
 }
 
 async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
@@ -86,7 +94,15 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const formattedPhone = formatPhoneNumber(phone);
+    const normalizedPhone = normalizeE164(phone);
+    if (!isValidE164(normalizedPhone)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Enter a valid phone number with country code (e.g., +1234567890)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const formattedPhone = formatPhoneNumber(normalizedPhone);
 
     // ======= SEND OTP =======
     if (action === "send" || !action) {
@@ -95,7 +111,7 @@ serve(async (req) => {
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("id, phone, user_id")
-          .or(`phone.eq.${phone},phone.eq.${formattedPhone},phone.eq.0${formattedPhone.slice(3)},phone.eq.+${formattedPhone}`)
+          .eq("phone", normalizedPhone)
           .limit(1)
           .maybeSingle();
 
@@ -117,7 +133,7 @@ serve(async (req) => {
       const { data: recentOtp } = await supabase
         .from("otps")
         .select("id, created_at")
-        .eq("phone", formattedPhone)
+        .eq("phone", normalizedPhone)
         .eq("purpose", purpose)
         .eq("is_used", false)
         .gt("created_at", oneMinuteAgo)
@@ -137,7 +153,7 @@ serve(async (req) => {
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
 
       const { error: insertErr } = await supabase.from("otps").insert({
-        phone: formattedPhone,
+        phone: normalizedPhone,
         code: otp,
         purpose,
         attempts: 0,
@@ -178,7 +194,7 @@ serve(async (req) => {
       const { data: storedOtp, error: fetchErr } = await supabase
         .from("otps")
         .select("*")
-        .eq("phone", formattedPhone)
+        .eq("phone", normalizedPhone)
         .eq("purpose", purpose)
         .eq("is_used", false)
         .order("created_at", { ascending: false })
@@ -230,7 +246,7 @@ serve(async (req) => {
       const { data: profile } = await supabase
         .from("profiles")
         .select("user_id, email, name, phone")
-        .or(`phone.eq.${phone},phone.eq.${formattedPhone},phone.eq.0${formattedPhone.slice(3)},phone.eq.+${formattedPhone}`)
+        .eq("phone", normalizedPhone)
         .limit(1)
         .maybeSingle();
 

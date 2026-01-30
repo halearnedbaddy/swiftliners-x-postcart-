@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRightIcon, MailIcon, LockIcon, PhoneIcon } from '@/components/icons';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useTranslations } from '@/hooks/useTranslations';
+import { normalizeToE164 } from '@/lib/phone';
 
 type AuthMode = 'email' | 'otp';
 type OtpStep = 'phone' | 'verify';
@@ -61,16 +62,15 @@ export function LoginPage() {
       return;
     }
 
-    // Validate phone format (Kenya format: +254...)
-    const phoneRegex = /^\+254[17]\d{8}$/;
-    if (!phoneRegex.test(phone)) {
+    const normalizedPhone = normalizeToE164(phone);
+    if (!normalizedPhone) {
       setError(t('auth.validKenyanPhone'));
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await requestOTP(phone, 'LOGIN');
+      const result = await requestOTP(normalizedPhone, 'LOGIN');
       if (result.success) {
         setSuccess(t('auth.otpSent'));
         setOtpStep('verify');
@@ -99,7 +99,14 @@ export function LoginPage() {
 
     setIsLoading(true);
     try {
-      const result = await login(phone, otpCode);
+      const normalizedPhone = normalizeToE164(phone);
+      if (!normalizedPhone) {
+        setError(t('auth.validKenyanPhone'));
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await login(normalizedPhone, otpCode);
       if (result.success) {
         handleLoginSuccess();
       } else {

@@ -39,6 +39,7 @@ class CloudApiService {
   
   async registerWithEmail(data: { email: string; password: string; name: string; role?: string; phone?: string }): Promise<ApiResponse<{ user: User }>> {
     try {
+      const normalizedRole = (data.role || "buyer").toLowerCase();
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -46,7 +47,7 @@ class CloudApiService {
           emailRedirectTo: window.location.origin,
           data: {
             name: data.name,
-            role: data.role || "BUYER",
+            role: normalizedRole,
             phone: data.phone,
           },
         },
@@ -65,7 +66,7 @@ class CloudApiService {
         email: data.email,
         name: data.name,
         phone: data.phone,
-        role: (data.role as "BUYER" | "SELLER" | "ADMIN") || "BUYER",
+        role: (normalizedRole.toUpperCase() as "BUYER" | "SELLER" | "ADMIN") || "BUYER",
       };
 
       return { success: true, data: { user } };
