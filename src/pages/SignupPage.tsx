@@ -4,6 +4,7 @@ import { CheckCircleIcon, ArrowRightIcon, BuyerIcon, ShoppingBagIcon, MailIcon, 
 import { z } from 'zod';
 import { useSupabaseAuth } from '@/contexts/SupabaseAuthContext';
 import { useTranslations } from '@/hooks/useTranslations';
+import { isValidE164, normalizeToE164 } from '@/lib/phone';
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -18,7 +19,11 @@ export function SignupPage() {
     email: z.string().email(t('signup.validEmail')),
     password: z.string().min(8, t('signup.passwordMinLength')),
     confirmPassword: z.string(),
-    phone: z.string().regex(/^\+254[17]\d{8}$/, t('signup.validKenyanPhone')).optional().or(z.literal('')),
+    phone: z
+      .string()
+      .optional()
+      .or(z.literal(''))
+      .refine((val) => !val || isValidE164(val), { message: t('signup.validKenyanPhone') }),
   }).refine((data) => data.password === data.confirmPassword, {
     message: t('signup.passwordsDontMatch'),
     path: ['confirmPassword'],
@@ -62,11 +67,14 @@ export function SignupPage() {
     setIsLoading(true);
 
     try {
+      const normalizedPhone = formData.phone ? normalizeToE164(formData.phone) : null;
+
       const response = await registerEmail({
         email: formData.email,
         password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`.trim(),
-        role: role === 'seller' ? 'SELLER' : 'BUYER',
+        role: role === 'seller' ? 'seller' : 'buyer',
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       });
 
       if (response.success) {
@@ -74,6 +82,8 @@ export function SignupPage() {
           navigate(role === 'seller' ? '/seller' : '/buyer');
         }, 200);
       } else {
+        // Log the raw error for debugging (avoid logging sensitive values)
+        console.error('Signup failed:', response.error);
         setError(response.error || t('signup.registrationFailed'));
       }
     } catch {

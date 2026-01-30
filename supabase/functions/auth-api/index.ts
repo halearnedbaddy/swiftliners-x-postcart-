@@ -19,29 +19,28 @@ function generateOTPCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Normalize phone number to E.164 format
+// Normalize phone number to E.164-ish format: +[countrycode][number]
+// - Accepts optional formatting: spaces, dashes, parentheses
+// - Accepts 00 prefix and converts to +
+// - Requires explicit country code
 function normalizePhoneNumber(phone: string): string {
-  let cleaned = phone.replace(/\D/g, "");
-  if (cleaned.startsWith("0")) {
-    cleaned = "254" + cleaned.substring(1);
-  }
-  if (!cleaned.startsWith("+")) {
-    cleaned = "+" + cleaned;
-  }
-  return cleaned;
+  const raw = (phone ?? "").trim();
+  if (!raw) return "";
+
+  // Convert 00 prefix to +
+  const withPlus = raw.startsWith("00") ? `+${raw.slice(2)}` : raw;
+  const stripped = withPlus.replace(/[^\d+]/g, "");
+
+  const digits = stripped.startsWith("+")
+    ? `+${stripped.slice(1).replace(/\D/g, "")}`
+    : stripped.replace(/\D/g, "");
+
+  return digits;
 }
 
-// Format phone for SMS API (without +)
+// Format phone for SMS API (digits only, without +)
 function formatPhoneForSMS(phone: string): string {
-  let formatted = phone.trim().replace(/\D/g, '');
-  if (formatted.startsWith('0')) {
-    formatted = '254' + formatted.substring(1);
-  } else if (formatted.startsWith('7') || formatted.startsWith('1')) {
-    formatted = '254' + formatted;
-  } else if (!formatted.startsWith('254')) {
-    formatted = '254' + formatted;
-  }
-  return formatted;
+  return (phone ?? "").replace(/\D/g, "");
 }
 
 // Send SMS via Bulk SMS Kenya (AdvantaSMS)
@@ -97,6 +96,17 @@ function validatePhoneNumber(phone: string): boolean {
   return /^\+\d{10,15}$/.test(normalized);
 }
 
+function normalizeRole(input: string | undefined | null): "buyer" | "seller" | "admin" {
+  const raw = (input ?? "buyer").toString().trim().toLowerCase();
+  if (raw === "admin") return "admin";
+  if (raw === "seller" || raw === "sell" || raw === "merchant") return "seller";
+  if (raw === "buyer" || raw === "buy" || raw === "customer") return "buyer";
+  // Also accept uppercase legacy values
+  if (raw === "seller" || raw === "seller") return "seller";
+  if (raw === "buyer" || raw === "buyer") return "buyer";
+  return "buyer";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -141,7 +151,7 @@ async function handleRequestOTP(req: Request): Promise<Response> {
 
   if (!validatePhoneNumber(phone)) {
     return new Response(
-      JSON.stringify({ success: false, error: "Invalid phone number format" }),
+      JSON.stringify({ success: false, error: "Enter a valid phone number with country code (e.g., +1234567890)" }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -228,6 +238,12 @@ async function handleVerifyOTP(req: Request): Promise<Response> {
   const { phone, code, purpose } = await req.json();
 
   const normalizedPhone = normalizePhoneNumber(phone);
+  if (!/^\+\d{10,15}$/.test(normalizedPhone)) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Enter a valid phone number with country code (e.g., +1234567890)" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   // Find valid OTP
   const { data: otp } = await supabaseAdmin
@@ -296,8 +312,15 @@ async function handleRegister(req: Request): Promise<Response> {
     );
   }
 
+  if (!validatePhoneNumber(phone)) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Enter a valid phone number with country code (e.g., +1234567890)" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   const normalizedPhone = normalizePhoneNumber(phone);
-  const userRole = role || "buyer";
+  const userRole = normalizeRole(role);
 
   // Verify OTP first
   const { data: otpRecord } = await supabaseAdmin
@@ -392,6 +415,13 @@ async function handleLogin(req: Request): Promise<Response> {
     );
   }
 
+  if (!validatePhoneNumber(phone)) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Enter a valid phone number with country code (e.g., +1234567890)" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
   const normalizedPhone = normalizePhoneNumber(phone);
 
   // Verify OTP
@@ -479,7 +509,7 @@ async function handleLogin(req: Request): Promise<Response> {
 }
 
 async function handleRegisterEmail(req: Request): Promise<Response> {
-  const { email, password, name, role } = await req.json();
+  const { email, password, name, role, phone } = await req.json();
 
   if (!email || !password || !name) {
     return new Response(
@@ -495,7 +525,15 @@ async function handleRegisterEmail(req: Request): Promise<Response> {
     );
   }
 
-  const userRole = role || "buyer";
+  const userRole = normalizeRole(role);
+
+  const normalizedPhone = phone ? normalizePhoneNumber(phone) : null;
+  if (normalizedPhone && !/^\+\d{10,15}$/.test(normalizedPhone)) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Enter a valid phone number with country code (e.g., +1234567890)" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   // Create user with Supabase Auth
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -517,6 +555,28 @@ async function handleRegisterEmail(req: Request): Promise<Response> {
       JSON.stringify({ success: false, error: authError.message }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+  }
+
+  // If the user provided a phone (optional), persist it into the public profile.
+  // This avoids privilege escalation (role remains in user_roles), and helps OTP login.
+  if (normalizedPhone) {
+    const { data: existingProfile, error: profileFetchError } = await supabaseAdmin
+      .from("profiles")
+      .select("user_id")
+      .eq("user_id", authData.user.id)
+      .maybeSingle();
+
+    if (profileFetchError) {
+      console.error("Profile fetch error:", profileFetchError);
+    }
+
+    if (existingProfile) {
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from("profiles")
+        .update({ phone: normalizedPhone })
+        .eq("user_id", authData.user.id);
+      if (profileUpdateError) console.error("Profile update error:", profileUpdateError);
+    }
   }
 
   // Get user role

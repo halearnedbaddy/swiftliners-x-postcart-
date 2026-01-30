@@ -30,7 +30,7 @@ interface AuthContextType {
   loginEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (data: { phone: string; name: string; email?: string; role?: string; otp: string }) => Promise<{ success: boolean; error?: string }>;
-  registerEmail: (data: { email: string; password: string; name: string; role?: string }) => Promise<{ success: boolean; error?: string }>;
+  registerEmail: (data: { email: string; password: string; name: string; role?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   requestOTP: (phone: string, purpose: 'LOGIN' | 'REGISTRATION') => Promise<{ success: boolean; error?: string; otp?: string }>;
 }
@@ -151,7 +151,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
     return { success: false, error: response.error || 'Registration failed' };
   }, []);
 
-  const registerEmail = useCallback(async (data: { email: string; password: string; name: string; role?: string }) => {
+  const registerEmail = useCallback(async (data: { email: string; password: string; name: string; role?: string; phone?: string }) => {
     if (useSupabaseOnly) {
       const response = await supabaseRegisterWithEmail(data);
       if (response.success && response.data?.user) {
