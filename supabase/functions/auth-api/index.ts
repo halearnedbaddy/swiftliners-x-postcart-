@@ -43,11 +43,10 @@ function formatPhoneForSMS(phone: string): string {
   return (phone ?? "").replace(/\D/g, "");
 }
 
-// Send SMS via Bulk SMS Kenya (AdvantaSMS)
+// Send SMS via BulkSMS Kenya (BlessedTexts API)
 async function sendSMS(phone: string, message: string): Promise<{ success: boolean; error?: string }> {
   const apiKey = Deno.env.get("BULK_SMS_API_KEY");
-  const partnerID = "7810";
-  const senderId = "XpressKard";
+  const senderId = Deno.env.get("BULK_SMS_SENDER_ID") || "XpressKard";
 
   if (!apiKey) {
     console.error("❌ BULK_SMS_API_KEY not configured");
@@ -56,20 +55,20 @@ async function sendSMS(phone: string, message: string): Promise<{ success: boole
   }
 
   const formattedPhone = formatPhoneForSMS(phone);
-  console.log(`📱 Sending SMS to ${formattedPhone} via Bulk SMS Kenya...`);
+  console.log(`📱 Sending SMS to ${formattedPhone} via BulkSMS...`);
 
   try {
-    const response = await fetch("https://quicksms.advantasms.com/api/services/sendsms/", {
+    const response = await fetch("https://sms.blessedtexts.com/api/sms/v1/sendsms", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
       body: JSON.stringify({
-        apikey: apiKey,
-        partnerID: partnerID,
+        api_key: apiKey,
+        sender_id: senderId,
         message: message,
-        shortcode: senderId,
-        mobile: formattedPhone,
+        phone: formattedPhone,
       }),
     });
 
@@ -77,12 +76,17 @@ async function sendSMS(phone: string, message: string): Promise<{ success: boole
     console.log("📱 SMS API Response:", JSON.stringify(data, null, 2));
 
     // Check for success response
-    if (data.response_code === 200 || data.responses?.[0]?.response_code === 200 || response.ok) {
+    if (Array.isArray(data) && data[0]?.status_code === "1000") {
       console.log(`✅ SMS sent successfully to ${formattedPhone}`);
       return { success: true };
     }
 
-    return { success: false, error: data.response_description || "SMS send failed" };
+    if (data.status_code === "1000") {
+      console.log(`✅ SMS sent successfully to ${formattedPhone}`);
+      return { success: true };
+    }
+
+    return { success: false, error: data.status_desc || data[0]?.status_desc || "SMS send failed" };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error("❌ Error sending SMS:", errMsg);
