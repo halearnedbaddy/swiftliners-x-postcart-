@@ -8,6 +8,8 @@ import { BuyerDashboard } from "./pages/BuyerDashboard";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
+import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { AdminSetupPage } from "./pages/AdminSetupPage";
 import { LegalPage } from "./pages/LegalPage";
@@ -30,6 +32,8 @@ function App() {
         <Route path="/track/:transactionId" element={<OrderTrackingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
          <Route path="/admin/setup" element={<AdminSetupPage />} />
         <Route path="/admin" element={<AdminDashboard />} />
