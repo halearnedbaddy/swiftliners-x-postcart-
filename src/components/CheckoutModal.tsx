@@ -155,7 +155,7 @@ export function CheckoutModal({ isOpen, onClose, product, storeSlug, onSuccess }
                     value={buyerDetails.phone}
                     onChange={(e) => setBuyerDetails(prev => ({ ...prev, phone: e.target.value }))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-null focus:outline-none focus:border-blue-500"
-                    placeholder="+254 712 345 678"
+                    placeholder="+1234567890"
                   />
                 </div>
                 <div>

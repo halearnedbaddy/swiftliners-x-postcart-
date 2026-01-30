@@ -23,7 +23,7 @@ export function SignupPage() {
       .string()
       .optional()
       .or(z.literal(''))
-      .refine((val) => !val || isValidE164(val), { message: t('signup.validKenyanPhone') }),
+      .refine((val) => !val || isValidE164(val), { message: 'Enter a valid phone number with country code (e.g., +1234567890)' }),
   }).refine((data) => data.password === data.confirmPassword, {
     message: t('signup.passwordsDontMatch'),
     path: ['confirmPassword'],
@@ -245,7 +245,7 @@ export function SignupPage() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {t('signup.optionalPhoneNote')}
+                  Optional. Add phone with country code (+1, +44, +254, +234, etc.) for OTP login.
                 </p>
               </div>
 
