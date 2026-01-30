@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['logo.jpeg'],
+        includeAssets: ['logo.jpeg', 'pwa-icon-192.png', 'pwa-icon-512.png'],
         manifest: {
           name: 'PayLoom - Secure Escrow Platform',
           short_name: 'PayLoom',
@@ -25,16 +25,28 @@ export default defineConfig(({ mode }) => {
           start_url: '/',
           icons: [
             {
-              src: '/logo.jpeg',
+              src: '/pwa-icon-192.png',
               sizes: '192x192',
-              type: 'image/jpeg',
-              purpose: 'any maskable'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
-              src: '/logo.jpeg',
+              src: '/pwa-icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/pwa-icon-512.png',
               sizes: '512x512',
-              type: 'image/jpeg',
-              purpose: 'any maskable'
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/pwa-icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         },
