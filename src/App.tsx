@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SupabaseAuthProvider } from "@/contexts/SupabaseAuthContext";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { PaymentPage } from "./pages/PaymentPage";
 import { HomePage } from "./pages/HomePage";
 import { SellerDashboard } from "./pages/SellerDashboard";
@@ -41,6 +42,7 @@ function App() {
         <Route path="/legal" element={<LegalPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      <PWAInstallPrompt />
       </BrowserRouter>
     </SupabaseAuthProvider>
   );
