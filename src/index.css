@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 150 20% 99%;
+    --foreground: 220 25% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 11%;
+
+    --primary: 155 100% 42%;
+    --primary-foreground: 160 100% 15%;
+
+    --primary-dark: 160 100% 12%;
+
+    --secondary: 150 14% 97%;
+    --secondary-foreground: 220 25% 11%;
+
+    --muted: 150 8% 96%;
+    --muted-foreground: 215 14% 34%;
+
+    --accent: 150 14% 97%;
+    --accent-foreground: 220 25% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 10% 92%;
+    --input: 200 10% 92%;
+    --ring: 155 100% 42%;
+
+    --radius: 0.5rem;
+
+    --green: 155 100% 42%;
+    --green-dark: 160 100% 34%;
+    --gold: 42 100% 49%;
+    --ink: 220 25% 11%;
+    --ink-deep: 222 47% 5%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222 47% 5%;
+    --foreground: 0 0% 98%;
+
+    --card: 222 47% 5%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 222 47% 5%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 155 100% 42%;
+    --primary-foreground: 160 100% 15%;
+
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 18%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 155 100% 42%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Syne', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Syne', sans-serif;
+  }
+  .font-body {
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+@keyframes livepulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 hsl(155 100% 42% / 0.45); }
+  50% { opacity: 0.65; box-shadow: 0 0 0 6px hsl(155 100% 42% / 0); }
+}
+
+@keyframes float-up {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
